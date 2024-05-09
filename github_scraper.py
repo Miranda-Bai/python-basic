@@ -7,7 +7,7 @@ from selenium.webdriver.common.by import By
 # s = webdriver.ChromeService(executable_path=cdp)
 # driver = webdriver.Chrome(service=s)
 
-def get_all_repos(driver, url):
+def get_all_repos(url):
     repoLst = []
     driver.get(url)
     res = driver.find_elements(By.CLASS_NAME, "wb-break-all")
@@ -21,9 +21,31 @@ def get_all_repos(driver, url):
 def join_repo_url(base_url, repoLst):
     tempLst = []
     for repo in repoLst:
-        tempLst.append(urljoin(base_url, repo))
+        joined_url = base_url + "/" + repo
+       
+        tempLst.append(joined_url)
 
     return tempLst
+
+def get_file_page(repo):
+    driver.get(repo)
+    res = driver.find_elements(By.CLASS_NAME, "react-directory-truncate")
+    for file in res:
+        file = file.find_element(By.TAG_NAME, "a")
+        filename = file.text
+
+        if "py" in filename:
+            fileurl = f"{repo}/blob/main/{filename}"
+            return going_for_raw(fileurl)
+
+def going_for_raw(fileurl):
+    driver.get(fileurl)
+    # types__StyledButton-sc-ws60qy-0 
+    raw = driver.find_element(By.CLASS_NAME, "dTgfec")
+    raw.click()
+    file_content = driver.page_source
+    return f"{file_content}"
+
 
 def main():
     parser = argparse.ArgumentParser(description="Scraping HTML")
@@ -34,14 +56,21 @@ def main():
 
     url = args.url + "?tab=repositories"
     
-
+    global driver
+    
     driver = webdriver.Chrome()
-    repoLst = get_all_repos(driver, url)
+    repoLst = get_all_repos(url)
 
     if repoLst is not None and len(repoLst) != 0:
         repoLst = join_repo_url(args.url, repoLst)
+        print(repoLst)
 
-    
+        for repo in repoLst:
+            file_content = get_file_page(repo)
+            if file_content is not None and file_content != "" and args.keyword is not None and args.keyword != "":
+                if args.keyword in file_content:
+                    print(f"Find {args.keyword}!")
+                    print(file_content.find(args.keyword))
 
     driver.quit()
     
